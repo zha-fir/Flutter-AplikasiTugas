@@ -21,13 +21,57 @@ class Task extends HiveObject {
   @HiveField(4)
   bool isHabit;
 
+  @HiveField(5)
+  bool isCompleted;
+
+  @HiveField(6)
+  List<bool>? previousSubTaskStatus;
+
+  @HiveField(7, defaultValue: 'Tugas Kuliah')
+  String category;
+
   Task({
     required this.title,
     required this.deadline,
     this.subTasks = const [],
     this.filePaths = const [],
     this.isHabit = false,
+    this.isCompleted = false,
+    this.previousSubTaskStatus,
+    this.category = 'Tugas Kuliah',
   });
+
+  // Logika Smart Toggle (Sinkronisasi dengan Sub-Tugas)
+  void toggleCompletion(bool value) {
+    if (value) {
+      // User menandai SELESAI
+      // 1. Simpan status sub-tugas saat ini sebagai history
+      previousSubTaskStatus = subTasks.map((s) => s.isCompleted).toList();
+
+      // 2. Tandai semua sub-tugas jadi selesai
+      for (var s in subTasks) {
+        s.isCompleted = true;
+      }
+    } else {
+      // User membatalkan (UNCHECK)
+      if (previousSubTaskStatus != null &&
+          previousSubTaskStatus!.length == subTasks.length) {
+        // Restore status dari history
+        for (int i = 0; i < subTasks.length; i++) {
+          subTasks[i].isCompleted = previousSubTaskStatus![i];
+        }
+        previousSubTaskStatus = null; // Hapus history setelah dipakai
+      } else {
+        // Fallback: Jika tidak ada history (misal auto-complete), uncheck semua
+        for (var s in subTasks) {
+          s.isCompleted = false;
+        }
+      }
+    }
+
+    isCompleted = value;
+    save(); // Simpan perubahan ke Hive
+  }
 
   // Logika Warna (Tidak perlu disimpan di database, jadi tidak pakai @HiveField)
   Color get urgencyColor {

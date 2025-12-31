@@ -26,7 +26,9 @@ class HomeScreen extends StatelessWidget {
         actions: [
           IconButton(
             icon: const Icon(Icons.search),
-            onPressed: () {}, // Placeholder
+            onPressed: () {
+              showSearch(context: context, delegate: TaskSearchDelegate());
+            },
           ),
         ],
       ),
@@ -59,7 +61,9 @@ class HomeScreen extends StatelessWidget {
                   Icon(
                     Icons.note_alt_outlined,
                     size: 100,
-                    color: Theme.of(context).disabledColor.withOpacity(0.5),
+                    color: Theme.of(
+                      context,
+                    ).disabledColor.withValues(alpha: 0.5),
                   ),
                   const SizedBox(height: 16),
                   Text(
@@ -94,6 +98,80 @@ class HomeScreen extends StatelessWidget {
   }
 }
 
+class TaskSearchDelegate extends SearchDelegate {
+  @override
+  List<Widget>? buildActions(BuildContext context) {
+    return [
+      if (query.isNotEmpty)
+        IconButton(
+          icon: const Icon(Icons.clear),
+          onPressed: () {
+            query = '';
+          },
+        ),
+    ];
+  }
+
+  @override
+  Widget? buildLeading(BuildContext context) {
+    return IconButton(
+      icon: const Icon(Icons.arrow_back),
+      onPressed: () {
+        close(context, null);
+      },
+    );
+  }
+
+  @override
+  Widget buildResults(BuildContext context) {
+    return _buildSearchResults(context);
+  }
+
+  @override
+  Widget buildSuggestions(BuildContext context) {
+    return _buildSearchResults(context);
+  }
+
+  Widget _buildSearchResults(BuildContext context) {
+    final box = Hive.box<Task>('tasksBox');
+    final tasks = box.values.toList().cast<Task>().where((task) {
+      return task.title.toLowerCase().contains(query.toLowerCase());
+    }).toList();
+
+    // Sort by deadline
+    tasks.sort((a, b) => a.deadline.compareTo(b.deadline));
+
+    if (tasks.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.search_off_rounded, size: 80, color: Colors.grey[400]),
+            const SizedBox(height: 16),
+            Text(
+              "Tidak ditemukan",
+              style: TextStyle(
+                fontSize: 18,
+                color: Colors.grey[600],
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      itemCount: tasks.length,
+      itemBuilder: (context, index) {
+        final task = tasks[index];
+        return _TaskCard(task: task);
+      },
+    );
+  }
+}
+
 class _TaskCard extends StatelessWidget {
   final Task task;
 
@@ -110,7 +188,10 @@ class _TaskCard extends StatelessWidget {
     Color statusColor;
     String statusText;
 
-    if (isOverdue) {
+    if (task.isCompleted) {
+      statusColor = Colors.grey;
+      statusText = "Selesai";
+    } else if (isOverdue) {
       statusColor = Colors.red;
       statusText = "Telat";
     } else if (daysLeft == 0) {
@@ -136,11 +217,18 @@ class _TaskCard extends StatelessWidget {
 
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
-      elevation: 0, // Flat dengan border
-      color: Theme.of(context).cardTheme.color ?? Theme.of(context).cardColor,
+      elevation: task.isCompleted ? 0 : 2, // Flat jika selesai
+      color: task.isCompleted
+          ? Colors.grey.withOpacity(0.1)
+          : Theme.of(context).cardTheme.color ?? Theme.of(context).cardColor,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: Colors.grey.withOpacity(0.2), width: 1),
+        side: BorderSide(
+          color: task.isCompleted
+              ? Colors.grey.withOpacity(0.3)
+              : Colors.grey.withOpacity(0.2),
+          width: 1,
+        ),
       ),
       child: InkWell(
         onTap: () {
@@ -157,44 +245,116 @@ class _TaskCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Baris Atas: Judul & Chip Status
+              // Baris Atas: Checkbox, Judul & Chip Status
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: Text(
-                      task.title,
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
+                  // Checkbox Manual
+                  Transform.scale(
+                    scale: 1.2,
+                    child: Checkbox(
+                      value: task.isCompleted,
+                      shape: const CircleBorder(),
+                      activeColor: Colors.green,
+                      onChanged: (val) {
+                        task.toggleCompletion(val ?? false);
+                      },
                     ),
                   ),
                   const SizedBox(width: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: statusColor.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: statusColor.withOpacity(0.5)),
-                    ),
-                    child: Text(
-                      statusText,
-                      style: TextStyle(
-                        color: statusColor,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
+
+                  // Judul & Status
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                task.title,
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  decoration: task.isCompleted
+                                      ? TextDecoration.lineThrough
+                                      : null,
+                                  color: task.isCompleted ? Colors.grey : null,
+                                ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 4,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: statusColor.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(
+                                  color: statusColor.withOpacity(0.5),
+                                ),
+                              ),
+                              child: Text(
+                                statusText,
+                                style: TextStyle(
+                                  color: statusColor,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            // Chip Kategori
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.blueGrey.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(
+                                  color: Colors.blueGrey.withOpacity(0.3),
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.label_outline,
+                                    size: 12,
+                                    color: Colors.blueGrey,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    task.category,
+                                    style: TextStyle(
+                                      color: Colors.blueGrey,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ], // End Wrap children
+                        ), // End Wrap
+                      ], // End Column children
+                    ), // End Column
+                  ), // End Expanded
                 ],
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 12),
 
               // Info Waktu
               Row(
@@ -202,7 +362,7 @@ class _TaskCard extends StatelessWidget {
                   Icon(
                     Icons.access_time_filled_rounded,
                     size: 16,
-                    color: Colors.grey[600],
+                    color: task.isCompleted ? Colors.grey : Colors.grey[600],
                   ),
                   const SizedBox(width: 4),
                   Text(
@@ -210,7 +370,13 @@ class _TaskCard extends StatelessWidget {
                       'd MMM yyyy, HH:mm',
                       'id_ID',
                     ).format(task.deadline),
-                    style: TextStyle(color: Colors.grey[700], fontSize: 13),
+                    style: TextStyle(
+                      color: task.isCompleted ? Colors.grey : Colors.grey[700],
+                      fontSize: 13,
+                      decoration: task.isCompleted
+                          ? TextDecoration.lineThrough
+                          : null,
+                    ),
                   ),
                 ],
               ),
@@ -226,7 +392,9 @@ class _TaskCard extends StatelessWidget {
                         lineHeight: 6.0,
                         percent: progress,
                         barRadius: const Radius.circular(3),
-                        progressColor: statusColor,
+                        progressColor: task.isCompleted
+                            ? Colors.grey
+                            : statusColor,
                         backgroundColor: Colors.grey[200],
                         padding: EdgeInsets.zero,
                         animation: true,

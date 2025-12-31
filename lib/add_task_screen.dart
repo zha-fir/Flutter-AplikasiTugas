@@ -21,6 +21,7 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
 
   final ImagePicker _picker = ImagePicker();
   List<String> _attachedImagePaths = [];
+  String _selectedCategory = 'Tugas Kuliah'; // Default Kategori
 
   @override
   void initState() {
@@ -34,6 +35,7 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
       }
 
       _attachedImagePaths = List.from(widget.taskToEdit!.filePaths);
+      _selectedCategory = widget.taskToEdit!.category; // Load category
     }
   }
 
@@ -122,6 +124,7 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
       task.deadline = _selectedDate!;
       task.subTasks = newSubTasks;
       task.filePaths = _attachedImagePaths;
+      task.category = _selectedCategory;
       task.save();
     } else {
       final newTask = Task(
@@ -129,6 +132,7 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
         deadline: _selectedDate!,
         subTasks: newSubTasks,
         filePaths: _attachedImagePaths,
+        category: _selectedCategory,
       );
       var box = Hive.box<Task>('tasksBox');
       box.add(newTask);
@@ -243,6 +247,54 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
                   ],
                 ),
               ),
+            ),
+            const SizedBox(height: 24),
+
+            // --- KATEGORI ---
+            _buildSectionTitle("Kategori", Icons.category),
+            Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: ['Tugas Kuliah', 'Pribadi', 'Kerja', 'Lainnya'].map((
+                category,
+              ) {
+                final isSelected = _selectedCategory == category;
+                return ChoiceChip(
+                  label: Text(
+                    category,
+                    style: TextStyle(
+                      color: isSelected
+                          ? Colors.white
+                          : Theme.of(context).textTheme.bodyLarge?.color,
+                      fontWeight: isSelected
+                          ? FontWeight.bold
+                          : FontWeight.normal,
+                    ),
+                  ),
+                  selected: isSelected,
+                  onSelected: (selected) {
+                    if (selected) {
+                      setState(() {
+                        _selectedCategory = category;
+                      });
+                    }
+                  },
+                  selectedColor: Theme.of(context).colorScheme.primary,
+                  backgroundColor: Theme.of(context).cardColor,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                    side: BorderSide(
+                      color: isSelected
+                          ? Colors.transparent
+                          : Colors.grey.withOpacity(0.2),
+                    ),
+                  ),
+                  showCheckmark: false,
+                  avatar: isSelected
+                      ? const Icon(Icons.check, color: Colors.white, size: 18)
+                      : null,
+                );
+              }).toList(),
             ),
             const SizedBox(height: 24),
 

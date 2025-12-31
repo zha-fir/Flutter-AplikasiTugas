@@ -259,6 +259,15 @@ class _DetailTaskScreenState extends State<DetailTaskScreen> {
                           onChanged: (bool? value) {
                             setState(() {
                               subTask.isCompleted = value!;
+
+                              // --- LOGIKA OTOMATIS SELESAI ---
+                              // Jika semua sub-tugas selesai, maka Tugas Utama otomatis selesai.
+                              // Jika ada satu saja yang belum, maka Tugas Utama BELUM selesai.
+                              final allCompleted = widget.task.subTasks.every(
+                                (s) => s.isCompleted,
+                              );
+                              widget.task.isCompleted = allCompleted;
+
                               widget.task.save();
                             });
                           },
