@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:google_fonts/google_fonts.dart'; // Import Google Fonts
-import 'home_screen.dart';
+
 import 'task_model.dart';
+import 'main_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -101,7 +102,7 @@ class MyApp extends StatelessWidget {
       // Mengikuti pengaturan sistem (Otomatis)
       themeMode: ThemeMode.system,
 
-      home: const HomeScreen(),
+      home: const MainScreen(),
     );
   }
 }

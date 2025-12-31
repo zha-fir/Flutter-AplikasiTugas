@@ -5,6 +5,9 @@ import 'package:percent_indicator/linear_percent_indicator.dart'; // Indikator P
 import 'task_model.dart';
 import 'add_task_screen.dart';
 import 'detail_task_screen.dart';
+import 'category_screen.dart';
+import 'settings_screen.dart';
+import 'history_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -30,6 +33,66 @@ class HomeScreen extends StatelessWidget {
               showSearch(context: context, delegate: TaskSearchDelegate());
             },
           ),
+          PopupMenuButton<String>(
+            onSelected: (value) {
+              if (value == 'category') {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const CategoryScreen(),
+                  ),
+                );
+              } else if (value == 'history') {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const HistoryScreen(),
+                  ),
+                );
+              } else if (value == 'settings') {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const SettingsScreen(),
+                  ),
+                );
+              }
+            },
+            itemBuilder: (BuildContext context) {
+              return [
+                const PopupMenuItem(
+                  value: 'category',
+                  child: Row(
+                    children: [
+                      Icon(Icons.category_rounded, color: Colors.grey),
+                      SizedBox(width: 8),
+                      Text('Kategori'),
+                    ],
+                  ),
+                ),
+                const PopupMenuItem(
+                  value: 'history',
+                  child: Row(
+                    children: [
+                      Icon(Icons.history_rounded, color: Colors.grey),
+                      SizedBox(width: 8),
+                      Text('Riwayat'),
+                    ],
+                  ),
+                ),
+                const PopupMenuItem(
+                  value: 'settings',
+                  child: Row(
+                    children: [
+                      Icon(Icons.settings_rounded, color: Colors.grey),
+                      SizedBox(width: 8),
+                      Text('Pengaturan'),
+                    ],
+                  ),
+                ),
+              ];
+            },
+          ),
         ],
       ),
 
@@ -48,7 +111,21 @@ class HomeScreen extends StatelessWidget {
       body: ValueListenableBuilder<Box<Task>>(
         valueListenable: Hive.box<Task>('tasksBox').listenable(),
         builder: (context, box, _) {
-          var tasks = box.values.toList().cast<Task>();
+          // Filter Tugas:
+          // Tampilkan jika:
+          // 1. Belum Selesai (isCompleted == false)
+          // 2. ATAU Selesai TAPI Deadline belum lewat 1 hari yg lalu (Masih "Hangat")
+          final now = DateTime.now();
+          var tasks = box.values.where((task) {
+            final isOld = task.deadline.isBefore(
+              now.subtract(const Duration(days: 1)),
+            );
+            // Jika sudah selesai DAN sudah lama, jangan tampilkan di Home (Masuk History)
+            if (task.isCompleted && isOld) {
+              return false;
+            }
+            return true;
+          }).toList();
 
           // Logika Sorting: Deadline terdekat di paling atas
           tasks.sort((a, b) => a.deadline.compareTo(b.deadline));
